@@ -1,0 +1,16 @@
+/.bundle/
+/.yardoc
+/_yardoc/
+/coverage/
+/doc/
+/pkg/
+/spec/reports/
+/tmp/
+/vendor
+/.ruby-version
+/polyrange-*.gem
+.rspec_status
+Gemfile.lock
+/throttle_server/tmp/*
+
+!.gitkeep
