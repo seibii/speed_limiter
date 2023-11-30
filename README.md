@@ -2,6 +2,8 @@
 
 # SpeedLimiter
 
+<img src="README_image.jpg" width="400px" />
+
 This is a Gem for execution limits in multi-process and multi-threaded environments. By using Redis, you can limit execution across multiple processes and threads.
 
 It was mainly created to avoid hitting access limits to the API server.
