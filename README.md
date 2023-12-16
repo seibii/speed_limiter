@@ -31,8 +31,8 @@ Or install it yourself as:
 Limit the number of executions to 10 times per second.
 
 ```ruby
-SpeedLimiter.throttle('server_name/method_name', limit: 10, period: 1) do |count|
-  logger.info("throttle #{count}/10/sec")
+SpeedLimiter.throttle('server_name/method_name', limit: 10, period: 1) do |state|
+  puts state #=> <SpeedLimiter::State key=server_name/method_name count=1 ttl=0>
   http.get(path)
 end
 ```
@@ -43,13 +43,13 @@ It returns the result of the block execution.
 result = SpeedLimiter.throttle('server_name/method_name', limit: 10, period: 1) do
   http.get(path)
 end
-puts result.body
+puts result.code #=> 200
 ```
 
 Specify the process when the limit is exceeded.
 
 ```ruby
-on_throttled = proc { |ttl, key| logger.info("limit exceeded #{key} #{ttl}") }
+on_throttled = proc { |state| logger.info("limit exceeded #{state.key} #{state.ttl}") }
 SpeedLimiter.throttle('server_name/method_name', limit: 10, period: 1, on_throttled: on_throttled) do
   http.get(path)
 end
@@ -60,8 +60,8 @@ Reinitialize the queue instead of sleeping when the limit is reached in ActiveJo
 ```ruby
 class CreateSlackChannelJob < ApplicationJob
   def perform(*args)
-    on_throttled = proc do |ttl, _key|
-      raise Slack::LimitExceeded, ttl if ttl > 5
+    on_throttled = proc do |state|
+      raise Slack::LimitExceeded, state.ttl if state.ttl > 5
     end
 
     SpeedLimiter.throttle("slack", limit: 20, period: 1.minute, on_throttled: on_throttled) do
@@ -109,7 +109,7 @@ If you want to detect the limit in the test environment, please set it as follow
 ```ruby
 Rspec.describe do
   around do |example|
-    SpeedLimiter.config.on_throttled = proc { |ttl, key| raise "limit exceeded #{key} #{ttl}" }
+    SpeedLimiter.config.on_throttled = proc { |state| raise "limit exceeded #{state.key} #{state.ttl}" }
 
     example.run
 
@@ -117,7 +117,7 @@ Rspec.describe do
   end
 
   it do
-    expect { over_limit_method }.to raise_error('limit exceeded speed_limiter:key_name [\d.]+')
+    expect { over_limit_method }.to raise_error('limit exceeded key_name [\d.]+')
   end
 end
 ```

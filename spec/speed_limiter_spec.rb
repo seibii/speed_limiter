@@ -12,10 +12,16 @@ RSpec.describe SpeedLimiter do
         .to eq("block return value")
     end
 
-    it "block takes count as arguments" do
-      expect { |b| described_class.throttle("block arguments", limit: 10, period: 1, &b) }.to yield_with_args(1)
-      expect { |b| described_class.throttle("block arguments", limit: 10, period: 1, &b) }.to yield_with_args(2)
-      expect { |b| described_class.throttle("block arguments", limit: 10, period: 1, &b) }.to yield_with_args(3)
+    it "block takes SpeedLimiter::State as arguments" do
+      expect { |b| described_class.throttle("block arguments", limit: 10, period: 1, &b) }.to yield_with_args(
+        be_a(SpeedLimiter::State).and(have_attributes(count: 1, ttl: -1..1, limit: 10, period: 1))
+      )
+      expect { |b| described_class.throttle("block arguments", limit: 10, period: 1, &b) }.to yield_with_args(
+        be_a(SpeedLimiter::State).and(have_attributes(count: 2, ttl: -1..1, limit: 10, period: 1))
+      )
+      expect { |b| described_class.throttle("block arguments", limit: 10, period: 1, &b) }.to yield_with_args(
+        be_a(SpeedLimiter::State).and(have_attributes(count: 3, ttl: -1..1, limit: 10, period: 1))
+      )
     end
 
     context "when the server can only be accessed 10 times per second" do
@@ -83,14 +89,15 @@ RSpec.describe SpeedLimiter do
           end
         end.to raise_error("limit exceeded").and(yield_control.once)
 
-        expect(on_throttled).to have_received(:call).with(0.9..1, "speed_limiter:on_throttled").once
+        expect(on_throttled).to have_received(:call)
+          .with(be_a(SpeedLimiter::State).and(have_attributes(count: 2, ttl: 0.9..1))).once
       end
     end
 
     context "when a proc is set in 'config.on_throttled'" do
       around do |example|
         described_class.configure do |config|
-          config.on_throttled = proc { |ttl, key| raise "limit exceeded #{key} #{ttl}" }
+          config.on_throttled = proc { |state| raise "limit exceeded #{state.key} #{state.ttl} #{state.count}" }
         end
 
         example.run
@@ -110,7 +117,7 @@ RSpec.describe SpeedLimiter do
               block_mock.call
             end
           end
-        end.to raise_error(/limit exceeded speed_limiter:config.on_throttled 0.9\d+/)
+        end.to raise_error(/limit exceeded config.on_throttled (0\.9\d+|1\.0) 2/)
 
         expect(block_mock).to have_received(:call).once
       end
