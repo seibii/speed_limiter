@@ -1,24 +1,12 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "net/http"
-require "uri"
 require "securerandom"
 require "benchmark"
 require "parallel"
 
 RSpec.describe SpeedLimiter do
   describe ".throttle" do
-    let!(:throttle_server) { URI.parse(ENV.fetch("TEST_THROTTLE_SERVER", "http://localhost:9292")) }
-    let!(:http) { Net::HTTP.new(throttle_server.host, throttle_server.port) }
-
-    before do
-      redis_url = ENV.fetch("TEST_REDIS_URL", "redis://localhost:6379/0")
-      described_class.configure do |config|
-        config.redis_url = redis_url
-      end
-    end
-
     it "return the block return value" do
       expect(described_class.throttle("block return value", limit: 1, period: 1) { "block return value" })
         .to eq("block return value")
@@ -37,7 +25,7 @@ RSpec.describe SpeedLimiter do
         time = Benchmark.realtime do
           11.times do
             described_class.throttle(path, limit: 10, period: 1) do
-              response = http.get(path)
+              response = throttle_server.get(path)
               expect(response).to be_a(Net::HTTPOK)
             end
           end
@@ -55,7 +43,7 @@ RSpec.describe SpeedLimiter do
         time = Benchmark.realtime do
           Parallel.map(1..101, in_processes: 5) do
             described_class.throttle(path, limit: 100, period: 1) do
-              response = http.get(path)
+              response = throttle_server.get(path)
               expect(response).to be_a(Net::HTTPOK)
             end
           end
@@ -73,7 +61,7 @@ RSpec.describe SpeedLimiter do
         time = Benchmark.realtime do
           Parallel.map(1..101, in_processes: 5) do
             described_class.throttle(path, limit: 9, period: 1) do
-              response = http.get(path)
+              response = throttle_server.get(path)
               expect(response).to be_a(Net::HTTPOK)
             end
           end
