@@ -18,3 +18,6 @@ Rspec/MultipleExpectations:
 Rspec/ExampleLength:
   Enabled: false
 
+Metrics/BlockLength:
+  Exclude:
+    - 'Rakefile'

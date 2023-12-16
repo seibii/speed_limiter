@@ -38,8 +38,8 @@ jobs:
           ruby-version: ${{ matrix.ruby-version }}
           bundler-cache: true
 
-      - name: Rackup test throttle server
-        run: bundle exec pumad -C throttle_server/puma.rb throttle_server/config.ru
+      - name: Rackup test web server
+        run: bundle exec rake throttle_server:start_daemon
 
       - name: Run tests
         run: bundle exec rspec -fd

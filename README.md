@@ -162,11 +162,11 @@ You can also run bin/console for an interactive prompt that will allow you to ex
 
 ### rspec
 
-Start a web server and Redis for testing with the following command.
+Start a test web server and Redis for testing with the following command.
 
-```
-$ rake test:throttle_server
-$ docker compose up
+```console
+$ rake throttle_server:start_daemon # or rake throttle_server:start
+$ docker compose up -d
 ```
 
 After that, please run the test with the following command.
