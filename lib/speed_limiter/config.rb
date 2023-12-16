@@ -6,7 +6,7 @@ module SpeedLimiter
     attr_accessor :redis_url, :redis, :no_limit, :prefix, :on_throttled
 
     def initialize
-      @redis_url = "redis://localhost:6379/0"
+      @redis_url = ENV.fetch("SPEED_LIMITER_REDIS_URL", "redis://localhost:6379/0")
       @redis = nil
       @no_limit = false
       @prefix = "speed_limiter"

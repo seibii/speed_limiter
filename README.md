@@ -75,6 +75,14 @@ end
 
 ### Configuration
 
+#### Redis configuration
+
+Redis can be specified as follows
+
+1. default url `redis://localhost:6379/0`
+2. `SPEED_LIMITER_REDIS_URL` environment variable
+3. Configure `SpeedLimiter.configure`
+
 ```ruby
 # config/initializers/speed_limiter.rb
 SpeedLimiter.configure do |config|
@@ -90,6 +98,20 @@ SpeedLimiter.configure do |config|
   config.redis = Redis.new(host: 'localhost', port: 6379, db: 2)
 end
 ```
+
+#### Other configuration defaults
+
+```ruby
+SpeedLimiter.configure do |config|
+   config.redis_url = ENV.fetch("SPEED_LIMITER_REDIS_URL", "redis://localhost:6379/0")
+   config.redis = nil
+   config.no_limit = false # If true, it will not be throttled
+   config.prefix = "speed_limiter" # Redis key prefix
+   config.on_throttled = nil # Proc to be executed when the limit is exceeded
+end
+```
+
+#### Example
 
 If you do not want to impose a limit in the test environment, please set it as follows.
 
