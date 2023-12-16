@@ -19,28 +19,43 @@ module SpeedLimiter
       @redis ||= config.redis || Redis.new(url: config.redis_url)
     end
 
-    def throttle(key, limit:, period:, &block)
-      return block&.call if config.no_limit?
+    # @param key [String] key name
+    # @param limit [Integer] limit count per period
+    # @param period [Integer] period time (seconds)
+    # @param on_throttled [Proc] Block called when limit exceeded, with ttl(Float) and key as argument
+    # @yield [count] Block called to not reach limit
+    # @yieldparam count [Integer] count of period
+    # @yieldreturn [any] block return value
+    def throttle(key, limit:, period:, on_throttled: nil)
+      return yield if config.no_limit?
 
       key_name = "#{config.prefix}:#{key}"
       loop do
         count = increment(key_name, period)
 
-        break(block&.call) if count <= limit
+        break(yield(count)) if count <= limit
 
-        wait_for_interval(key_name)
+        wait_for_interval(key_name, on_throttled)
       end
     end
 
     private
 
-    def wait_for_interval(key)
-      pttl = redis.pttl(key)
-      ttl = pttl / 1000.0
+    def wait_for_interval(key, on_throttled)
+      ttl = ttl(key)
+      return if ttl.negative?
 
+      config.on_throttled.call(ttl, key) if config.on_throttled.respond_to?(:call)
+      on_throttled.call(ttl, key) if on_throttled.respond_to?(:call)
+
+      ttl = ttl(key)
       return if ttl.negative?
 
       sleep ttl
+    end
+
+    def ttl(key)
+      redis.pttl(key) / 1000.0
     end
 
     def increment(key, period) # rubocop:disable Metrics/MethodLength

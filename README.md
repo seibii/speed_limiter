@@ -1,12 +1,14 @@
-[![lint](https://github.com/seibii/speed_limiter/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/seibii/speed_limiter/actions/workflows/lint.yml) [![test](https://github.com/seibii/speed_limiter/actions/workflows/test.yml/badge.svg)](https://github.com/seibii/speed_limiter/actions/workflows/test.yml) [![Gem Version](https://badge.fury.io/rb/speed_limiter.svg)](https://badge.fury.io/rb/speed_limiter) [![MIT License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE)
+[![lint](https://github.com/seibii/speed_limiter/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/seibii/speed_limiter/actions/workflows/lint.yml) [![test](https://github.com/seibii/speed_limiter/actions/workflows/test.yml/badge.svg)](https://github.com/seibii/speed_limiter/actions/workflows/test.yml) [![Gem Version](https://badge.fury.io/rb/speed_limiter.svg)](https://badge.fury.io/rb/speed_limiter) [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE)
 
 # SpeedLimiter
 
 <img src="README_image.jpg" width="400px" />
 
-This is a Gem for execution limits in multi-process and multi-threaded environments. By using Redis, you can limit execution across multiple processes and threads.
+SpeedLimiter is a gem that limits the number of executions per unit of time.
+By default, it achieves throttling through sleep.
 
-It was mainly created to avoid hitting access limits to the API server.
+You can also use the `on_throttled` event to raise an exception instead of sleeping, or to re-enqueue the task.
+
 
 ## Installation
 
@@ -26,10 +28,48 @@ Or install it yourself as:
 
 ## Usage
 
+Limit the number of executions to 10 times per second.
+
 ```ruby
-# Limit the number of executions to 10 times per second
-SpeedLimiter.throttle('server_name/method_name', limit: 10, period: 1) do
-  # Do something
+SpeedLimiter.throttle('server_name/method_name', limit: 10, period: 1) do |count|
+  logger.info("throttle #{count}/10/sec")
+  http.get(path)
+end
+```
+
+It returns the result of the block execution.
+
+```ruby
+result = SpeedLimiter.throttle('server_name/method_name', limit: 10, period: 1) do
+  http.get(path)
+end
+puts result.body
+```
+
+Specify the process when the limit is exceeded.
+
+```ruby
+on_throttled = proc { |ttl, key| logger.info("limit exceeded #{key} #{ttl}") }
+SpeedLimiter.throttle('server_name/method_name', limit: 10, period: 1, on_throttled: on_throttled) do
+  http.get(path)
+end
+```
+
+Reinitialize the queue instead of sleeping when the limit is reached in ActiveJob.
+
+```ruby
+class CreateSlackChannelJob < ApplicationJob
+  def perform(*args)
+    on_throttled = proc do |ttl, _key|
+      raise Slack::LimitExceeded, ttl if ttl > 5
+    end
+
+    SpeedLimiter.throttle("slack", limit: 20, period: 1.minute, on_throttled: on_throttled) do
+      create_slack_channel(*args)
+    end
+  rescue Slack::LimitExceeded => e
+    self.class.set(wait: e.ttl).perform_later(*args)
+  end
 end
 ```
 
@@ -38,7 +78,7 @@ end
 ```ruby
 # config/initializers/speed_limiter.rb
 SpeedLimiter.configure do |config|
-  config.redis_url = ENV['SPEED_LIMITER_REDIS_URL'] || 'redis://localhost:6379/2'
+  config.redis_url = ENV.fetch('SPEED_LIMITER_REDIS_URL', 'redis://localhost:6379/2')
 end
 ```
 
@@ -60,6 +100,24 @@ RSpec.configure do |config|
     SpeedLimiter.configure do |config|
       config.no_limit = true
     end
+  end
+end
+```
+
+If you want to detect the limit in the test environment, please set it as follows.
+
+```ruby
+Rspec.describe do
+  around do |example|
+    SpeedLimiter.config.on_throttled = proc { |ttl, key| raise "limit exceeded #{key} #{ttl}" }
+
+    example.run
+
+    SpeedLimiter.config.on_throttled = nil
+  end
+
+  it do
+    expect { over_limit_method }.to raise_error('limit exceeded speed_limiter:key_name [\d.]+')
   end
 end
 ```
