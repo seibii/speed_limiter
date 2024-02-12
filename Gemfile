@@ -13,6 +13,7 @@ group :development do
   gem "rack-attack", "~> 6.7"
   gem "rackup", "~> 2.1"
   gem "rake"
+  gem "retryable"
   gem "rspec"
   gem "rubocop"
   gem "rubocop-rake"

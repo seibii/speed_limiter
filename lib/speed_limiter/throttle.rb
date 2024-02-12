@@ -13,6 +13,7 @@ module SpeedLimiter
     # @option params [Integer] :limit limit count per period
     # @option params [Integer] :period period time (seconds)
     # @option params [Proc, #call] :on_throttled Block called when limit exceeded, with ttl(Float) and key as argument
+    # @option params [true, Hash] :retry Retry options. (see {Retryable.retryable} for details)
     def initialize(key, config:, **params)
       params[:key] = key.to_s
 
@@ -27,6 +28,33 @@ module SpeedLimiter
     # @yieldparam state [SpeedLimiter::State]
     # @return [any] block return value
     def call(&block)
+      if use_retryable?
+        Retryable.retryable(**retryable_options) { run_block(&block) }
+      else
+        run_block(&block)
+      end
+    end
+
+    private
+
+    def use_retryable?
+      return false if params.retry == false || params.retry.nil?
+
+      unless Gem::Specification.find_by_name("retryable")
+        raise ArgumentError, "To use the 'retry' option, you need to install the Retryable gem."
+      end
+
+      require "retryable"
+      params.retry.is_a?(Hash) || params.retry == true
+    end
+
+    def retryable_options
+      return {} if params.retry == true
+
+      params.retry
+    end
+
+    def run_block(&block)
       return block.call(create_state) if config.no_limit?
 
       loop do
@@ -37,8 +65,6 @@ module SpeedLimiter
         wait_for_interval(count)
       end
     end
-
-    private
 
     def wait_for_interval(count)
       ttl = redis.ttl(redis_key)

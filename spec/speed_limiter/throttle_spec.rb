@@ -119,5 +119,18 @@ RSpec.describe SpeedLimiter::Throttle do
         expect(block_mock).to have_received(:call).once
       end
     end
+
+    context "when StandardError for retry option" do
+      it do
+        block_mock = proc { "block return value" }
+        allow(block_mock).to receive(:call).and_raise(StandardError)
+
+        key = Random.uuid
+        throttle = described_class.new(key, config: config, limit: 1, period: 1, retry: { on: StandardError, tries: 2 })
+
+        expect { throttle.call { block_mock.call } }.to raise_error(StandardError)
+        expect(block_mock).to have_received(:call).twice
+      end
+    end
   end
 end
