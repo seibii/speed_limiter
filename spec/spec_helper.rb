@@ -18,7 +18,7 @@ throttle_server = URI.parse(ENV.fetch("TEST_THROTTLE_SERVER", "http://localhost:
 begin
   Net::HTTP.get(throttle_server)
 rescue Errno::ECONNREFUSED
-  puts "Throttle Server connection error:\n  Please run `rake test:throttle_server`"
+  puts "Throttle Server connection error:\n  Please run `rake throttle_server:start_daemon`"
   exit 1
 end
 

@@ -16,19 +16,19 @@ module SpeedLimiter
       yield(config)
     end
 
-    def redis
-      @redis ||= config.redis || Redis.new(url: config.redis_url)
-    end
-
-    # @param key [String] key name
-    # @param limit [Integer] limit count per period
-    # @param period [Integer] period time (seconds)
-    # @param on_throttled [Proc] Block called when limit exceeded, with ttl(Float) and key as argument
-    # @yield [count] Block called to not reach limit
-    # @yieldparam count [Integer] count of period
-    # @yieldreturn [any] block return value
+    # @param key (see Throttle#initialize)
+    # @option (see Throttle#initialize)
+    # @yield (see Throttle#call)
+    # @yieldparam (see Throttle#call)
+    # @return Return value of block if argument contains block, otherwise Throttle instance
     def throttle(key, **params, &block)
-      Throttle.new(config: config, key: key, **params, &block).throttle
+      throttle = Throttle.new(key, config: config, **params)
+
+      if block
+        throttle.call(&block)
+      else
+        throttle
+      end
     end
   end
 end
