@@ -55,6 +55,8 @@ end
 puts result.code #=> 200
 ```
 
+### on_throttled option
+
 Specify the process when the limit is exceeded.
 
 ```ruby
@@ -82,9 +84,40 @@ class CreateSlackChannelJob < ApplicationJob
 end
 ```
 
-### Configuration
+### retry option
 
-#### Redis configuration
+To use the `retry:` option, you need to introduce the [Retryable gem](https://github.com/nfedyashev/retryable).
+By specifying the options of the Retryable gem, you can retry when an exception occurs.
+
+```ruby
+# Gemfile
+gem 'retryable'
+```
+
+```ruby
+SpeedLimiter.throttle('server_name/method_name', limit: 10, period: 1, retry: { tries: 3, on: OpenURI::HTTPError }) do
+  http.get(path)
+end
+
+# equivalent to
+SpeedLimiter.throttle('server_name/method_name', limit: 10, period: 1) do
+  Retryable.retryable(tries: 3, on: OpenURI::HTTPError) do
+    http.get(path)
+  end
+end
+```
+
+`retry: true` or `retry: {}` is default use of `Retryable.configure`.
+
+```ruby
+SpeedLimiter.throttle('server_name/method_name', limit: 10, period: 1, retry: true) do
+  http.get(path)
+end
+```
+
+## Configuration
+
+### Redis configuration
 
 Redis can be specified as follows
 
@@ -108,7 +141,7 @@ SpeedLimiter.configure do |config|
 end
 ```
 
-#### Other configuration defaults
+### Other configuration defaults
 
 ```ruby
 SpeedLimiter.configure do |config|
@@ -120,7 +153,7 @@ SpeedLimiter.configure do |config|
 end
 ```
 
-#### Example
+### Example
 
 If you do not want to impose a limit in the test environment, please set it as follows.
 
