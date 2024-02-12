@@ -35,6 +35,15 @@ SpeedLimiter.throttle('server_name/method_name', limit: 10, period: 1) do |state
   puts state #=> <SpeedLimiter::State key=server_name/method_name count=1 ttl=0>
   http.get(path)
 end
+
+# or
+
+throttle_limit_10_par_sec = SpeedLimiter.throttle('server_name/method_name', limit: 10, period: 1)
+
+throttle_limit_10_par_sec.call do |state|
+  puts state #=> <SpeedLimiter::State key=server_name/method_name count=1 ttl=0>
+  http.get(path)
+end
 ```
 
 It returns the result of the block execution.

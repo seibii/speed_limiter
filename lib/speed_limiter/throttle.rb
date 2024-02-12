@@ -9,23 +9,24 @@ module SpeedLimiter
   class Throttle
     extend Forwardable
 
-    # @option params [String] :key key name
+    # @param key [String, #to_s] Throttle key name
     # @option params [Integer] :limit limit count per period
     # @option params [Integer] :period period time (seconds)
-    # @option params [Proc] :on_throttled Block called when limit exceeded, with ttl(Float) and key as argument
-    # @yield [count] Block called to not reach limit
-    # @yieldparam count [Integer] count of period
-    # @yieldreturn [any] block return value
-    def initialize(config:, **params, &block)
+    # @option params [Proc, #call] :on_throttled Block called when limit exceeded, with ttl(Float) and key as argument
+    def initialize(key, config:, **params)
+      params[:key] = key.to_s
+
       @config = config
       @params = ThrottleParams.new(config: config, **params)
-      @block = block
     end
     attr_reader :config, :params, :block
 
-    def_delegators(:params, :key, :redis_key, :limit, :period, :on_throttled, :create_state)
+    delegate %i[key redis_key limit period on_throttled create_state] => :params
 
-    def throttle
+    # @yield [state]
+    # @yieldparam state [SpeedLimiter::State]
+    # @return [any] block return value
+    def call(&block)
       return block.call(create_state) if config.no_limit?
 
       loop do
