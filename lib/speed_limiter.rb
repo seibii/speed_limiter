@@ -16,10 +16,6 @@ module SpeedLimiter
       yield(config)
     end
 
-    def redis
-      @redis ||= config.redis || Redis.new(url: config.redis_url)
-    end
-
     # @param key [String] key name
     # @param limit [Integer] limit count per period
     # @param period [Integer] period time (seconds)
