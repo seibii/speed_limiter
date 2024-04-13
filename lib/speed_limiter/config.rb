@@ -14,5 +14,9 @@ module SpeedLimiter
     end
 
     alias no_limit? no_limit
+
+    def redis_client
+      @redis_client ||= SpeedLimiter::Redis.new(@redis || ::Redis.new(url: redis_url))
+    end
   end
 end

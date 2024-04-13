@@ -22,6 +22,8 @@ module SpeedLimiter
     end
     attr_reader :config, :params, :block
 
+    delegate %i[redis_client] => :config
+
     delegate %i[key redis_key limit period on_throttled create_state] => :params
 
     # @yield [state]
@@ -58,7 +60,7 @@ module SpeedLimiter
       return block.call(create_state) if config.no_limit?
 
       loop do
-        count, ttl = redis.increment(redis_key, period)
+        count, ttl = redis_client.increment(redis_key, period)
 
         break(block.call(create_state(count: count, ttl: ttl))) if count <= limit
 
@@ -67,20 +69,16 @@ module SpeedLimiter
     end
 
     def wait_for_interval(count)
-      ttl = redis.ttl(redis_key)
+      ttl = redis_client.ttl(redis_key)
       return if ttl.negative?
 
       config.on_throttled.call(create_state(count: count, ttl: ttl)) if config.on_throttled.respond_to?(:call)
       on_throttled.call(create_state(count: count, ttl: ttl)) if on_throttled.respond_to?(:call)
 
-      ttl = redis.ttl(redis_key)
+      ttl = redis_client.ttl(redis_key)
       return if ttl.negative?
 
       sleep ttl
-    end
-
-    def redis
-      @redis ||= SpeedLimiter::Redis.new(config.redis || ::Redis.new(url: config.redis_url))
     end
   end
 end
