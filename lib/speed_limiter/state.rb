@@ -31,7 +31,7 @@ module SpeedLimiter
     #   @see SpeedLimiter::ThrottleParams#on_throttled
     # @!method retry
     #   @see SpeedLimiter::ThrottleParams#retry
-    def_delegators(:@params, :config, :key, :limit, :period, :on_throttled, :retry)
+    delegate %i[config key limit period on_throttled retry] => :@params
 
     def inspect
       "<#{self.class.name} key=#{key.inspect} count=#{count} ttl=#{ttl}>"

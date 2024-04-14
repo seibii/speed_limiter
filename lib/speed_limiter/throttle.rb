@@ -22,9 +22,9 @@ module SpeedLimiter
     end
     attr_reader :config, :params, :block
 
-    delegate %i[redis_client] => :config
+    delegate %i[redis_client] => :@config
 
-    delegate %i[key redis_key limit period on_throttled create_state] => :params
+    delegate %i[key redis_key limit period on_throttled create_state] => :@params
 
     # @yield [state]
     # @yieldparam state [SpeedLimiter::State]
