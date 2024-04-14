@@ -66,20 +66,34 @@ SpeedLimiter.throttle('server_name/method_name', limit: 10, period: 1, on_thrott
 end
 ```
 
+### raise_on_throttled option
+
+It raises an exception when the limit is exceeded.
+
+```ruby
+begin
+  SpeedLimiter.throttle('server_name/method_name', limit: 10, period: 1, raise_on_throttled: true) do
+    http.get(path)
+  end
+rescue SpeedLimiter::ThrottledError => e
+  logger.info(e.message) #=> "server_name/method_name rate limit exceeded. Retry after 0.9 seconds. limit=10, count=11, period=1"
+  e.state #=> <SpeedLimiter::State key=server_name/method_name count=11 ttl=0.9>
+end
+```
+
 Reinitialize the queue instead of sleeping when the limit is reached in ActiveJob.
 
 ```ruby
 class CreateSlackChannelJob < ApplicationJob
-  def perform(*args)
-    on_throttled = proc do |state|
-      raise Slack::LimitExceeded, state.ttl if state.ttl > 5
-    end
+  rescue_from(SpeedLimiter::ThrottledError) do |e|
+    Rails.logger.warn("[#{e.class}] #{self.class} retry job. #{e.message}")
+    retry_job(wait: e.ttl, queue: 'low')
+  end
 
-    SpeedLimiter.throttle("slack", limit: 20, period: 1.minute, on_throttled: on_throttled) do
+  def perform(*args)
+    SpeedLimiter.throttle("slack", limit: 20, period: 1.minute, raise_on_throttled: true) do
       create_slack_channel(*args)
     end
-  rescue Slack::LimitExceeded => e
-    self.class.set(wait: e.ttl).perform_later(*args)
   end
 end
 ```

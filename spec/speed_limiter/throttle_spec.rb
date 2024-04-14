@@ -80,6 +80,28 @@ RSpec.describe SpeedLimiter::Throttle do
       end
     end
 
+    context "when 'raise_on_throttled: true' is specified as an argument" do
+      it "raises an exception when the limit is reached" do
+        throttle = described_class.new(Random.uuid, config: config, limit: 1, period: 1, raise_on_throttled: true)
+
+        expect { 2.times { throttle.call { nil } } }.to raise_error(SpeedLimiter::Errors::ThrottledError) do |error|
+          expect(error).to have_attributes(key: be_a(String), ttl: 0.9..1, count: 2)
+        end
+      end
+    end
+
+    context "when 'raise_on_throttled: SpeedLimiter::Errors::LimitExceededError' is specified as an argument" do
+      it "raises a SpeedLimiter::Errors::LimitExceededError exception when the limit is reached" do
+        throttle = described_class.new(
+          Random.uuid, config: config, limit: 1, period: 1, raise_on_throttled: SpeedLimiter::Errors::LimitExceededError
+        )
+
+        expect { 2.times { throttle.call { nil } } }.to raise_error(SpeedLimiter::Errors::LimitExceededError) do |error|
+          expect(error).to have_attributes(key: be_a(String), ttl: 0.9..1, count: 2)
+        end
+      end
+    end
+
     context "when 'on_throttled' is specified as an argument" do
       it "when the limit is reached, 'on_throttled' is called" do
         on_throttled = proc { raise "limit exceeded" }

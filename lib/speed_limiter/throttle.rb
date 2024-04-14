@@ -13,6 +13,10 @@ module SpeedLimiter
     # @option params [Integer] :limit limit count per period
     # @option params [Integer] :period period time (seconds)
     # @option params [Proc, #call] :on_throttled Block called when limit exceeded, with ttl(Float) and key as argument
+    # @option params [true, Class] :raise_on_throttled
+    #   Raise error when limit exceeded. If Class is given, it will be raised instead of SpeedLimiter::ThrottledError.
+    #   If you want to specify a custom error class, please specify a class that inherits from
+    #   SpeedLimiter::LimitExceededError or a class that accepts SpeedLimiter::State as an argument.
     # @option params [true, Hash] :retry Retry options. (see {Retryable.retryable} for details)
     def initialize(key, config:, **params)
       params[:key] = key.to_s
@@ -24,7 +28,9 @@ module SpeedLimiter
 
     delegate %i[redis_client] => :@config
 
-    delegate %i[key redis_key limit period on_throttled create_state] => :@params
+    delegate %i[
+      key redis_key limit period on_throttled raise_on_throttled_class raise_on_throttled? create_state
+    ] => :@params
 
     # @yield [state]
     # @yieldparam state [SpeedLimiter::State]
@@ -72,8 +78,12 @@ module SpeedLimiter
       ttl = redis_client.ttl(redis_key)
       return if ttl.negative?
 
-      config.on_throttled.call(create_state(count: count, ttl: ttl)) if config.on_throttled.respond_to?(:call)
-      on_throttled.call(create_state(count: count, ttl: ttl)) if on_throttled.respond_to?(:call)
+      create_state(count: count, ttl: ttl).tap do |state|
+        raise raise_on_throttled_class, state if raise_on_throttled?
+
+        config.on_throttled.call(state) if config.on_throttled.respond_to?(:call)
+        on_throttled.call(state) if on_throttled.respond_to?(:call)
+      end
 
       ttl = redis_client.ttl(redis_key)
       return if ttl.negative?
