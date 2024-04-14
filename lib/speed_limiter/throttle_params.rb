@@ -5,12 +5,18 @@ require "speed_limiter/state"
 module SpeedLimiter
   # Throttle params model
   class ThrottleParams
+    KNOWN_OPTIONS = %i[on_throttled retry].freeze
+
     def initialize(config:, key:, limit:, period:, **options)
       @config = config
       @key = key
       @limit = limit
       @period = period
       @options = options
+
+      return unless (unknown_options = options.keys - KNOWN_OPTIONS).any?
+
+      raise ArgumentError, "Unknown options: #{unknown_options.join(', ')}"
     end
 
     attr_reader :config, :key, :limit, :period
