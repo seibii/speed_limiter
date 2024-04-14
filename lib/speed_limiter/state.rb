@@ -19,7 +19,19 @@ module SpeedLimiter
 
     attr_reader :params, :count, :ttl
 
-    def_delegators(:params, :config, :key, :limit, :period, :on_throttled, :retry)
+    # @!method config
+    #   @see SpeedLimiter::ThrottleParams#config
+    # @!method key
+    #   @see SpeedLimiter::ThrottleParams#key
+    # @!method limit
+    #   @see SpeedLimiter::ThrottleParams#limit
+    # @!method period
+    #   @see SpeedLimiter::ThrottleParams#period
+    # @!method on_throttled
+    #   @see SpeedLimiter::ThrottleParams#on_throttled
+    # @!method retry
+    #   @see SpeedLimiter::ThrottleParams#retry
+    def_delegators(:@params, :config, :key, :limit, :period, :on_throttled, :retry)
 
     def inspect
       "<#{self.class.name} key=#{key.inspect} count=#{count} ttl=#{ttl}>"
