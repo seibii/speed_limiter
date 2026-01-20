@@ -6,6 +6,7 @@ source "https://rubygems.org"
 gemspec
 
 group :development do
+  gem "benchmark"
   gem "parallel", "~> 1.23"
   gem "puma", "~> 6.4"
   gem "puma-daemon", "~> 0.3", require: false
