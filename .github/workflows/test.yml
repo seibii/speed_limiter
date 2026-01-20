@@ -31,6 +31,8 @@ jobs:
             redis-version: '8.2'
           - ruby-version: '3.3'
             redis-version: '8.2'
+          - ruby-version: ruby-head
+            redis-version: '8.2'
 
     services:
       redis:
